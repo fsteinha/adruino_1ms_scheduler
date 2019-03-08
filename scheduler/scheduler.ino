@@ -51,7 +51,7 @@ int m_i_scheduler_task_cnt = 0;
 /* Arduino global init */
 void setup()
 { 
-  /* init mill counter *
+  /* init mill counter */
   m_i_prev_cnt_ms = millis();               
 }
 
