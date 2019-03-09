@@ -1,10 +1,21 @@
 /*
+ ******************************************************
+ * \brief Simple scheduler for adruino ide
+ ******************************************************
+ */
+
+
+/*
+ ******************************************************
  * typedefs
+ ******************************************************
  */
 
 /* struct for scheduler tab */
 typedef struct
 {
+  /* falg task is execute (cyclic) */
+  bool b_execute;
   /* task index where the task should execute */
   unsigned int ui_task_idx;
   /* pointer to scheduler function */  
@@ -12,40 +23,60 @@ typedef struct
 }T_SchedulerTab;
 
 /*
+ ******************************************************
  * Prototypes for scheduler functions
+ ******************************************************
  */
  
 /* example blink (toogle led withc echa call)*/ 
 void blink_task();
-/* led on to each task time */ 
+/* example led on to each task time */ 
 void led_on();
-/* led off to each task time */ 
+/* example led off to each task time */ 
 void led_off();
 
 /*
+ ******************************************************
  * Globals
+ ******************************************************
  */
 
 /* 
  *  Scheduler table.
  *  Index muss arrange in ascending order
  */
-T_SchedulerTab m_s_scheduler_tab[]=
+T_SchedulerTab m_s_scheduler_tab_static[]=
 {
-  { 500, led_on},   
-  { 1000, led_off},   
+  /* Task at 100 ms */
+  { false, 100, led_on },
+  /* Task at 200 ms */
+  { false, 500, led_off},
+};
+
+T_SchedulerTab m_s_scheduler_tab_cyclic[]=
+{
+  /* Task at every 500 ms */
+  { false, 500, NULL}
 };
 
 /* previous ms value */
-int m_i_prev_cnt_ms = 0;
+static int m_i_prev_cnt_ms = 0;
 /* ms counter for compare the next task index */
-int m_i_scheduler_task_cnt_ms = 0;                       
-/* task counter in scheduler table */
-int m_i_scheduler_task_cnt = 0;
+static int m_i_scheduler_task_cnt_ms = 0;                       
+/* task counter in static scheduler table */
+static int m_i_scheduler_task_cnt_static = 0;
+/* sizeof static scheduler table */
+static int m_i_scheduler_size_static = sizeof(m_s_scheduler_tab_static)/sizeof(*m_s_scheduler_tab_static);
+/* task counter in static scheduler table */
+static int m_i_scheduler_task_cnt_cyclic = 0;
+/* sizeof cyclic scheduler table */
+static int m_i_scheduler_size_cyclic = sizeof(m_s_scheduler_tab_cyclic)/sizeof(*m_s_scheduler_tab_cyclic);
 
 
 /* 
+ ******************************************************
  * Functions
+ ******************************************************
  */
 
 /* Arduino global init */
@@ -58,24 +89,44 @@ void setup()
 /* Arduino program loop */
 void loop()
 {
-  int i_Cnt_ms = millis();
+  int i_cnt_ms = millis();
 
-  if ((i_Cnt_ms - m_i_prev_cnt_ms) >= 1)
+  if ((i_cnt_ms - m_i_prev_cnt_ms) >= 1)
   {
     m_i_scheduler_task_cnt_ms++;
 
-    if (m_i_scheduler_task_cnt >= sizeof(m_s_scheduler_tab)/sizeof(*m_s_scheduler_tab))
-    {
-      m_i_scheduler_task_cnt = 0;
-      m_i_scheduler_task_cnt_ms = 0;
+    /* Static part */
+    if (m_i_scheduler_task_cnt_static >= (m_i_scheduler_size_static))
+    {     
+      m_i_scheduler_task_cnt_static = 0;
+      m_i_scheduler_task_cnt_ms = 1;
     }
     
-    if (m_i_scheduler_task_cnt_ms == m_s_scheduler_tab[m_i_scheduler_task_cnt].ui_task_idx)
+    if (m_i_scheduler_task_cnt_ms == m_s_scheduler_tab_static[m_i_scheduler_task_cnt_static].ui_task_idx)
     {
-      m_s_scheduler_tab[m_i_scheduler_task_cnt].scheduler_func();
-      m_i_scheduler_task_cnt++;
+      m_s_scheduler_tab_static[m_i_scheduler_task_cnt_static].scheduler_func();
+      m_i_scheduler_task_cnt_static++;
     }
 
-    m_i_prev_cnt_ms = i_Cnt_ms;
+    /* cyclic part */
+    if (m_i_scheduler_task_cnt_cyclic >= (m_i_scheduler_size_cyclic))
+    {
+      m_i_scheduler_task_cnt_cyclic = 0;
+    }
+
+    if ((m_s_scheduler_tab_cyclic[m_i_scheduler_task_cnt_cyclic].scheduler_func != NULL) &&
+        (m_s_scheduler_tab_cyclic[m_i_scheduler_task_cnt_cyclic].b_execute  == false) && 
+        ((m_s_scheduler_tab_cyclic[m_i_scheduler_task_cnt_cyclic].ui_task_idx & m_i_scheduler_task_cnt_ms) > 0))
+    {
+      m_s_scheduler_tab_cyclic[m_i_scheduler_task_cnt_cyclic].scheduler_func();
+      m_s_scheduler_tab_cyclic[m_i_scheduler_task_cnt_cyclic].b_execute = true;
+      m_i_scheduler_task_cnt_cyclic++;
+    }
+    else if ((m_s_scheduler_tab_cyclic[m_i_scheduler_task_cnt_cyclic].ui_task_idx & m_i_scheduler_task_cnt_ms) == 0)
+    {
+      m_s_scheduler_tab_cyclic[m_i_scheduler_task_cnt_cyclic].b_execute = false;
+    }
+
+    m_i_prev_cnt_ms = i_cnt_ms;
   }
 }
